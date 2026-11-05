@@ -1,210 +1,154 @@
-(function () {
+/* PCL SE — interaction layer (Guizang Swiss rebuild) */
+(() => {
   "use strict";
 
-  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var header = document.getElementById("site-header");
-  var nav = document.getElementById("site-nav");
-  var menuBtn = document.getElementById("menu-btn");
-  var sections = ["features", "bedrock", "download", "faq"]
-    .map(function (id) { return document.getElementById(id); })
-    .filter(Boolean);
+  const header = document.getElementById("site-header");
+  const nav = document.getElementById("site-nav");
+  const menuBtn = document.getElementById("menu-btn");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* 顶部导航背景 */
-  function onScrollHeader() {
-    if (header) {
-      header.classList.toggle("is-scrolled", window.scrollY > 8);
-    }
+  /* Sticky header state */
+  if (header) {
+    const setStuck = () => header.classList.toggle("is-stuck", window.scrollY > 6);
+    setStuck();
+    window.addEventListener("scroll", setStuck, { passive: true });
   }
 
-  onScrollHeader();
-  window.addEventListener("scroll", onScrollHeader, { passive: true });
+  /* Mobile menu */
+  if (nav && menuBtn) {
+    const navLinks = Array.from(nav.querySelectorAll("a"));
 
-  /* 移动端菜单 */
-  function setMenu(open) {
-    if (!nav || !menuBtn) return;
-    nav.classList.toggle("is-open", open);
-    menuBtn.classList.toggle("is-open", open);
-    menuBtn.setAttribute("aria-expanded", String(open));
-    menuBtn.setAttribute("aria-label", open ? "关闭导航菜单" : "打开导航菜单");
-  }
-
-  if (menuBtn && nav) {
-    menuBtn.addEventListener("click", function () {
-      setMenu(!nav.classList.contains("is-open"));
-    });
-
-    nav.addEventListener("click", function (event) {
-      if (event.target.closest("a")) setMenu(false);
-    });
-
-    document.addEventListener("click", function (event) {
-      if (!nav.contains(event.target) && !menuBtn.contains(event.target)) {
-        setMenu(false);
-      }
-    });
-
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape") setMenu(false);
-    });
-
-    var desktopQuery = window.matchMedia("(min-width: 901px)");
-    if (desktopQuery.addEventListener) {
-      desktopQuery.addEventListener("change", function (event) {
-        if (event.matches) setMenu(false);
-      });
-    }
-  }
-
-  /* 滚动时高亮当前区块 */
-  if (nav && sections.length) {
-    var navLinks = Array.prototype.slice.call(nav.querySelectorAll("a"));
-    var spyTicking = false;
-
-    function updateSpy() {
-      spyTicking = false;
-      var current = "";
-      var marker = window.innerHeight * 0.34;
-
-      sections.forEach(function (section) {
-        var rect = section.getBoundingClientRect();
-        if (rect.top <= marker && rect.bottom > marker) {
-          current = section.id;
-        }
-      });
-
-      navLinks.forEach(function (link) {
-        var isCurrent = link.getAttribute("href") === "#" + current;
-        link.classList.toggle("is-current", isCurrent);
-        if (isCurrent) {
-          link.setAttribute("aria-current", "location");
-        } else {
-          link.removeAttribute("aria-current");
-        }
-      });
-    }
-
-    window.addEventListener("scroll", function () {
-      if (spyTicking) return;
-      spyTicking = true;
-      window.requestAnimationFrame(updateSpy);
-    }, { passive: true });
-
-    updateSpy();
-  }
-
-  /* 入场动画 */
-  var revealItems = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
-
-  if (reduceMotion || !("IntersectionObserver" in window)) {
-    revealItems.forEach(function (item) { item.classList.add("is-visible"); });
-  } else {
-    revealItems.forEach(function (item) {
-      var group = Array.prototype.slice.call(item.parentElement.children)
-        .filter(function (child) { return child.classList.contains("reveal"); });
-      var index = group.indexOf(item);
-      item.style.setProperty("--delay", Math.min(index, 5) * 60 + "ms");
-    });
-
-    var revealObserver = new IntersectionObserver(function (entries, observer) {
-      entries.forEach(function (entry) {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add("is-visible");
-        observer.unobserve(entry.target);
-      });
-    }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
-
-    revealItems.forEach(function (item) { revealObserver.observe(item); });
-  }
-
-  /* Hero 视差 */
-  var heroVisual = document.getElementById("hero-visual");
-  var finePointer = window.matchMedia("(pointer: fine)").matches;
-
-  if (heroVisual && finePointer && !reduceMotion && window.innerWidth > 1024) {
-    var resetParallax = function () {
-      heroVisual.style.setProperty("--mx", "0");
-      heroVisual.style.setProperty("--my", "0");
+    const closeMenu = () => {
+      nav.classList.remove("is-open");
+      menuBtn.setAttribute("aria-expanded", "false");
+      menuBtn.setAttribute("aria-label", "打开导航菜单");
+      document.body.classList.remove("menu-open");
     };
 
-    heroVisual.addEventListener("pointermove", function (event) {
-      var rect = heroVisual.getBoundingClientRect();
-      var x = (event.clientX - rect.left) / rect.width - 0.5;
-      var y = (event.clientY - rect.top) / rect.height - 0.5;
-      heroVisual.style.setProperty("--mx", (x * 1.6).toFixed(3));
-      heroVisual.style.setProperty("--my", (y * 1.6).toFixed(3));
+    const openMenu = () => {
+      nav.classList.add("is-open");
+      menuBtn.setAttribute("aria-expanded", "true");
+      menuBtn.setAttribute("aria-label", "关闭导航菜单");
+      document.body.classList.add("menu-open");
+    };
+
+    menuBtn.addEventListener("click", () => {
+      if (nav.classList.contains("is-open")) closeMenu();
+      else openMenu();
     });
 
-    heroVisual.addEventListener("pointerleave", resetParallax);
-  }
+    navLinks.forEach((link) => link.addEventListener("click", closeMenu));
 
-  /* 复制构建命令 */
-  var copyBtn = document.querySelector(".copy-btn");
-  var feedback = document.getElementById("copy-feedback");
-
-  function showFeedback(message) {
-    if (!feedback) return;
-    feedback.textContent = message;
-    feedback.classList.add("is-visible");
-    window.clearTimeout(showFeedback.timer);
-    showFeedback.timer = window.setTimeout(function () {
-      feedback.classList.remove("is-visible");
-    }, 1800);
-  }
-
-  function copyText(text) {
-    if (navigator.clipboard && window.isSecureContext) {
-      return navigator.clipboard.writeText(text);
-    }
-    return new Promise(function (resolve, reject) {
-      var helper = document.createElement("textarea");
-      helper.value = text;
-      helper.setAttribute("readonly", "");
-      helper.style.position = "fixed";
-      helper.style.top = "-200px";
-      document.body.appendChild(helper);
-      helper.select();
-      try {
-        document.execCommand("copy");
-        resolve();
-      } catch (error) {
-        reject(error);
-      } finally {
-        document.body.removeChild(helper);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && nav.classList.contains("is-open")) {
+        closeMenu();
+        menuBtn.focus();
       }
     });
+
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 900) closeMenu();
+    });
   }
 
-  if (copyBtn) {
-    copyBtn.addEventListener("click", function () {
-      var target = document.getElementById(copyBtn.dataset.copyTarget);
+  /* Scroll spy for the primary nav */
+  const spyLinks = Array.from(document.querySelectorAll(".site-nav a[href^='#']"));
+  const spySections = spyLinks
+    .map((link) => document.querySelector(link.getAttribute("href")))
+    .filter(Boolean);
+
+  if (spySections.length && "IntersectionObserver" in window) {
+    const spy = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          spyLinks.forEach((link) => {
+            const active = link.getAttribute("href") === "#" + entry.target.id;
+            if (active) link.setAttribute("aria-current", "true");
+            else link.removeAttribute("aria-current");
+          });
+        });
+      },
+      { rootMargin: "-45% 0px -50% 0px", threshold: 0 }
+    );
+    spySections.forEach((section) => spy.observe(section));
+  }
+
+  /* Reveal on scroll */
+  const reveals = Array.from(document.querySelectorAll(".reveal"));
+  if (reveals.length) {
+    if (reduceMotion || !("IntersectionObserver" in window)) {
+      reveals.forEach((el) => el.classList.add("is-in"));
+    } else {
+      const io = new IntersectionObserver(
+        (entries, observer) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("is-in");
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
+      );
+      reveals.forEach((el) => io.observe(el));
+    }
+  }
+
+  /* Copy build command */
+  const copyBtn = document.querySelector(".copy-btn");
+  const feedback = document.getElementById("copy-feedback");
+
+  const fallbackCopy = (text) => {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.top = "-9999px";
+    document.body.appendChild(area);
+    area.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch (error) {
+      ok = false;
+    }
+    document.body.removeChild(area);
+    return ok;
+  };
+
+  if (copyBtn && feedback) {
+    copyBtn.addEventListener("click", async () => {
+      const target = document.getElementById(copyBtn.dataset.copyTarget);
       if (!target) return;
+      const text = target.textContent.trim();
+      let ok = false;
+      try {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      } catch (error) {
+        ok = fallbackCopy(text);
+      }
 
-      copyText(target.textContent.trim()).then(function () {
-        var label = copyBtn.querySelector("span");
+      const label = copyBtn.querySelector("span");
+      const original = label ? label.textContent : "";
+      if (ok) {
+        feedback.textContent = "已复制构建命令到剪贴板";
         if (label) label.textContent = "已复制";
-        showFeedback("构建命令已复制到剪贴板");
-        window.setTimeout(function () {
-          if (label) label.textContent = "复制";
-        }, 1800);
-      }).catch(function () {
-        showFeedback("复制失败，请手动选择命令");
-      });
+      } else {
+        feedback.textContent = "复制失败，请手动选中命令后复制";
+      }
+      copyBtn.classList.toggle("is-copied", ok);
+      window.clearTimeout(copyBtn._resetTimer);
+      copyBtn._resetTimer = window.setTimeout(() => {
+        if (label) label.textContent = original || "复制";
+        copyBtn.classList.remove("is-copied");
+        feedback.textContent = "";
+      }, 2600);
     });
   }
 
-  /* FAQ：一次只展开一项 */
-  var faqItems = Array.prototype.slice.call(document.querySelectorAll(".faq-item"));
-
-  faqItems.forEach(function (item) {
-    item.addEventListener("toggle", function () {
-      if (!item.open) return;
-      faqItems.forEach(function (other) {
-        if (other !== item) other.open = false;
-      });
-    });
-  });
-
-  /* 年份 */
-  var year = document.getElementById("year");
+  /* Footer year */
+  const year = document.getElementById("year");
   if (year) year.textContent = String(new Date().getFullYear());
 })();
